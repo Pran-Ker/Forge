@@ -1,15 +1,15 @@
-# Shadow
+# Forge
 
-A minimal, hackable AI agent built in Rust. Shadow uses Claude Sonnet 4.5 to reason about your requests, create execution plans, and take action using built-in tools.
+A minimal, hackable AI agent built in Rust. Forge uses Claude Sonnet 4.5 to reason about your requests, create execution plans, and take action using built-in tools.
 
 ## Agent Workflow
 
-Shadow implements a **4-phase agentic workflow**:
+Forge implements a **4-phase agentic workflow**:
 
 1. **Reasoning** - Claude analyzes your request and determines which tools to use
 2. **Response** - Claude explains what it will do in friendly language
 3. **Tool Call Planning** - Claude generates structured tool calls (JSON format)
-4. **Execution** - Shadow executes each tool call and displays results
+4. **Execution** - Forge executes each tool call and displays results
 
 ## Features
 
@@ -54,7 +54,7 @@ cargo run
 
 ## Usage
 
-Simply chat with Shadow in natural language:
+Simply chat with Forge in natural language:
 
 ```
 you> read the Cargo.toml file
@@ -71,7 +71,7 @@ I'll read the Cargo.toml file for you.
 → Executing
 [1/1] Read Cargo.toml
      1  [package]
-     2  name = "shadow"
+     2  name = "Forge"
      3  version = "0.1.0"
      4  edition = "2021"
      5
@@ -115,7 +115,7 @@ All tasks completed!
 ## Architecture
 
 ```
-shadow/
+Forge/
 ├── src/
 │   ├── main.rs          # Agent loop (reasoning → response → todos → execute)
 │   ├── lib.rs           # Library exports
@@ -142,7 +142,7 @@ shadow/
 2. **Reasoning Phase** - Claude analyzes the request and determines which tools to use
 3. **Response Phase** - Claude generates a friendly explanation
 4. **Tool Call Planning** - Claude generates structured tool calls in JSON format
-5. **Execution** - Shadow executes each tool call using the actual tool implementations
+5. **Execution** - Forge executes each tool call using the actual tool implementations
 6. **Results** - Tool output is displayed with beautiful colored formatting
 
 ## Design Principles
@@ -168,7 +168,7 @@ shadow/
 - `dotenv` - Environment variable loading
 - `serde` + `serde_json` - JSON serialization
 
-## Extending Shadow
+## Extending Forge
 
 ### Adding New Tools
 

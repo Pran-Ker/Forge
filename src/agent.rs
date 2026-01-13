@@ -2,8 +2,10 @@ use anyhow::Result;
 use reqwest::Client;
 use serde::{Deserialize, Serialize};
 use crate::{Output, tools};
+use std::pin::Pin;
+use std::future::Future;
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ToolCall {
     pub tool: String,
     pub args: Vec<String>,
@@ -48,6 +50,92 @@ impl Agent {
             output: Output::new(),
             messages: Vec::new(),
         }
+    }
+
+    fn handle_error<'a>(&'a mut self, error: &'a str, failed_tool: &'a ToolCall, depth: u32) -> Pin<Box<dyn Future<Output = Result<()>> + 'a>> {
+        Box::pin(async move {
+            self.output.tool_header("Error Recovery");
+
+            // Add error context to conversation
+            self.messages.push(Message {
+                role: "user".to_string(),
+                content: format!(
+                    "The tool call '{}' with args {:?} failed with error: {}\n\n\
+                    Please reason about why this failed and suggest a different approach.",
+                    failed_tool.tool, failed_tool.args, error
+                ),
+            });
+
+            // Get new reasoning with error context
+            let reasoning = self.reason_with_context().await?;
+            println!();
+
+            // Create new tool calls based on error analysis
+            let new_tool_calls = self.create_tool_calls_with_context(&reasoning).await?;
+
+            if !new_tool_calls.is_empty() {
+                println!();
+                self.execute_tool_calls_with_retry(new_tool_calls, depth + 1).await?;
+            }
+
+            Ok(())
+        })
+    }
+
+    async fn reason_with_context(&mut self) -> Result<String> {
+        self.output.tool_header("Reasoning");
+
+        let prompt = "Based on the error above, think about what went wrong and what to try next. Keep it brief (2-3 sentences).";
+
+        let reasoning = self.call_api(prompt).await?;
+        println!("{}", reasoning);
+        Ok(reasoning)
+    }
+
+    async fn create_tool_calls_with_context(&mut self, reasoning: &str) -> Result<Vec<ToolCall>> {
+        self.output.tool_header("Planning Tool Calls");
+
+        let prompt = format!(
+            "Reasoning: {}\n\n\
+            Available tools:\n\
+            - read <path>: Read a file\n\
+            - write <path> <content>: Write a file  \n\
+            - edit <path> <search> <replace>: Edit a file\n\
+            - bash <command>: Run shell command\n\
+            - glob <pattern>: Find files\n\
+            - grep <pattern> <path>: Search contents\n\n\
+            Generate tool calls as JSON array. Each call needs:\n\
+            - tool: tool name\n\
+            - args: array of string arguments\n\
+            - description: what this call does\n\n\
+            Example:\n\
+            [{{\"tool\": \"read\", \"args\": [\"Cargo.toml\"], \"description\": \"Read Cargo.toml\"}}]\n\n\
+            Return ONLY the JSON array, nothing else. If no tools needed, return []",
+            reasoning
+        );
+
+        let json_text = self.call_api(&prompt).await?;
+
+        let cleaned_json = json_text
+            .trim()
+            .strip_prefix("```json")
+            .or_else(|| json_text.trim().strip_prefix("```"))
+            .unwrap_or(json_text.trim())
+            .strip_suffix("```")
+            .unwrap_or(json_text.trim())
+            .trim();
+
+        let tool_calls: Vec<ToolCall> = serde_json::from_str(cleaned_json)
+            .unwrap_or_else(|e| {
+                eprintln!("Failed to parse tool calls: {}. Response was:\n{}", e, json_text);
+                vec![]
+            });
+
+        for (i, call) in tool_calls.iter().enumerate() {
+            self.output.list_item(i + 1, &format!("{} {}", call.tool, call.args.join(" ")));
+        }
+
+        Ok(tool_calls)
     }
 
     async fn call_api(&mut self, prompt: &str) -> Result<String> {
@@ -170,9 +258,18 @@ impl Agent {
     }
 
     pub async fn execute_tool_calls(&mut self, tool_calls: Vec<ToolCall>) -> Result<()> {
+        self.execute_tool_calls_with_retry(tool_calls, 0).await
+    }
+
+    async fn execute_tool_calls_with_retry(&mut self, tool_calls: Vec<ToolCall>, depth: u32) -> Result<()> {
+        const MAX_RETRIES: u32 = 2;
+
         self.output.tool_header("Executing");
 
         let mut results = Vec::new();
+        let mut had_error = false;
+        let mut failed_call: Option<ToolCall> = None;
+        let mut error_msg = String::new();
 
         for (i, call) in tool_calls.iter().enumerate() {
             self.output.info(&format!("\n[{}/{}] {}", i + 1, tool_calls.len(), call.description));
@@ -186,14 +283,21 @@ impl Agent {
                     results.push(format!("{}: {}", call.description, result));
                 }
                 Err(e) => {
-                    self.output.error(&format!("✗ Error: {}", e));
-                    results.push(format!("{}: Error - {}", call.description, e));
+                    let err_str = format!("{}", e);
+                    self.output.error(&format!("✗ Error: {}", err_str));
+                    results.push(format!("{}: Error - {}", call.description, err_str));
+
+                    if depth < MAX_RETRIES {
+                        had_error = true;
+                        failed_call = Some(call.clone());
+                        error_msg = err_str;
+                        break;
+                    }
                 }
             }
         }
 
         println!();
-        self.output.success("All tasks completed!");
 
         // Add tool execution results to conversation history
         if !results.is_empty() {
@@ -202,6 +306,17 @@ impl Agent {
                 role: "user".to_string(),
                 content: results_summary,
             });
+        }
+
+        // If error occurred and we haven't hit max retries, try error recovery
+        if had_error {
+            if let Some(call) = failed_call {
+                println!();
+                self.output.info(&format!("Retry attempt {}/{}", depth + 1, MAX_RETRIES));
+                self.handle_error(&error_msg, &call, depth).await?;
+            }
+        } else {
+            self.output.success("All tasks completed!");
         }
 
         Ok(())

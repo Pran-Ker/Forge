@@ -1,3 +1,0 @@
-Hello world!
-This is a test file.
-Let's see if Shadow can read it.

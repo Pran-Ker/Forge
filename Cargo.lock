@@ -473,6 +473,30 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "00b0228411908ca8685dba7fc2cdd70ec9990a6e753e89b6ac91a84c40fbaf4b"
 
 [[package]]
+name = "forge"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "console",
+ "dotenv",
+ "globset",
+ "grep-regex",
+ "grep-searcher",
+ "html2md",
+ "inquire",
+ "owo-colors",
+ "reqwest 0.12.28",
+ "serde",
+ "serde_json",
+ "similar",
+ "thiserror 2.0.17",
+ "tokio",
+ "urlencoding",
+ "walkdir",
+ "websearch",
+]
+
+[[package]]
 name = "form_urlencoded"
 version = "1.2.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2001,30 +2025,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "d036d71a959e00c77a63538b90a6c2390969f9772b096ea837205c6bd0491a44"
 dependencies = [
  "stable_deref_trait",
-]
-
-[[package]]
-name = "shadow"
-version = "0.1.0"
-dependencies = [
- "anyhow",
- "console",
- "dotenv",
- "globset",
- "grep-regex",
- "grep-searcher",
- "html2md",
- "inquire",
- "owo-colors",
- "reqwest 0.12.28",
- "serde",
- "serde_json",
- "similar",
- "thiserror 2.0.17",
- "tokio",
- "urlencoding",
- "walkdir",
- "websearch",
 ]
 
 [[package]]

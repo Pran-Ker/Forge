@@ -1,5 +1,5 @@
 use inquire::Text;
-use shadow::{Output, Agent};
+use Forge::{Output, Agent};
 use std::env;
 
 #[tokio::main]

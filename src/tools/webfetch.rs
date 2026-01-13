@@ -8,7 +8,7 @@ pub struct FetchResult {
 
 pub async fn webfetch(url: &str) -> Result<FetchResult> {
     let client = reqwest::Client::builder()
-        .user_agent("Shadow/1.0")
+        .user_agent("Forge/1.0")
         .timeout(Duration::from_secs(30))
         .build()?;
 

@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-Shadow (formerly called Forge in the code) is a minimal, hackable AI agent built in Rust that uses Claude Sonnet 4.5 for reasoning and task execution through a 4-phase workflow.
+Forge is a minimal, hackable AI agent built in Rust that uses Claude Sonnet 4.5 for reasoning and task execution through a 4-phase workflow.
 
 ## Development Commands
 
