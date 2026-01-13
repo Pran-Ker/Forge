@@ -7,7 +7,7 @@ async fn main() -> anyhow::Result<()> {
     dotenv::dotenv().ok();
 
     let output = Output::new();
-    output.success("Shadow v0.1.0 - AI Agent");
+    output.success("Forge v0.1.0 - AI Agent");
     output.info("Powered by Claude Sonnet 4.5\n");
 
     let api_key = env::var("ANTHROPIC_API_KEY").unwrap_or_else(|_| {
@@ -17,7 +17,7 @@ async fn main() -> anyhow::Result<()> {
         std::process::exit(1);
     });
 
-    let agent = Agent::new(api_key);
+    let mut agent = Agent::new(api_key);
 
     output.info("Agent is ready. Ask me to do something with your files!\n");
     output.info("Type 'exit' or 'quit' to exit\n");

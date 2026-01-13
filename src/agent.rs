@@ -17,7 +17,7 @@ struct AnthropicRequest {
     messages: Vec<Message>,
 }
 
-#[derive(Serialize)]
+#[derive(Serialize, Clone)]
 struct Message {
     role: String,
     content: String,
@@ -37,6 +37,7 @@ pub struct Agent {
     client: Client,
     api_key: String,
     output: Output,
+    messages: Vec<Message>,
 }
 
 impl Agent {
@@ -45,17 +46,21 @@ impl Agent {
             client: Client::new(),
             api_key,
             output: Output::new(),
+            messages: Vec::new(),
         }
     }
 
-    async fn call_api(&self, prompt: &str) -> Result<String> {
+    async fn call_api(&mut self, prompt: &str) -> Result<String> {
+        // Add user message to history
+        self.messages.push(Message {
+            role: "user".to_string(),
+            content: prompt.to_string(),
+        });
+
         let request = AnthropicRequest {
             model: "claude-sonnet-4-5-20250929".to_string(),
             max_tokens: 2000,
-            messages: vec![Message {
-                role: "user".to_string(),
-                content: prompt.to_string(),
-            }],
+            messages: self.messages.clone(),
         };
 
         let response = self.client
@@ -69,12 +74,20 @@ impl Agent {
 
         let response_body: AnthropicResponse = response.json().await?;
 
-        Ok(response_body.content.first()
+        let assistant_message = response_body.content.first()
             .map(|c| c.text.clone())
-            .unwrap_or_else(|| "No response".to_string()))
+            .unwrap_or_else(|| "No response".to_string());
+
+        // Add assistant response to history
+        self.messages.push(Message {
+            role: "assistant".to_string(),
+            content: assistant_message.clone(),
+        });
+
+        Ok(assistant_message)
     }
 
-    pub async fn reason(&self, user_input: &str) -> Result<String> {
+    pub async fn reason(&mut self, user_input: &str) -> Result<String> {
         self.output.tool_header("Reasoning");
 
         let prompt = format!(
@@ -95,7 +108,7 @@ impl Agent {
         Ok(reasoning)
     }
 
-    pub async fn respond(&self, user_input: &str, reasoning: &str) -> Result<String> {
+    pub async fn respond(&mut self, user_input: &str, reasoning: &str) -> Result<String> {
         self.output.tool_header("Response");
 
         let prompt = format!(
@@ -109,7 +122,7 @@ impl Agent {
         Ok(response_text)
     }
 
-    pub async fn create_tool_calls(&self, user_input: &str, reasoning: &str) -> Result<Vec<ToolCall>> {
+    pub async fn create_tool_calls(&mut self, user_input: &str, reasoning: &str) -> Result<Vec<ToolCall>> {
         self.output.tool_header("Planning Tool Calls");
 
         let prompt = format!(
@@ -146,8 +159,10 @@ impl Agent {
         Ok(tool_calls)
     }
 
-    pub async fn execute_tool_calls(&self, tool_calls: Vec<ToolCall>) -> Result<()> {
+    pub async fn execute_tool_calls(&mut self, tool_calls: Vec<ToolCall>) -> Result<()> {
         self.output.tool_header("Executing");
+
+        let mut results = Vec::new();
 
         for (i, call) in tool_calls.iter().enumerate() {
             self.output.info(&format!("\n[{}/{}] {}", i + 1, tool_calls.len(), call.description));
@@ -158,15 +173,27 @@ impl Agent {
                         println!("{}", result);
                     }
                     self.output.success("✓ Done");
+                    results.push(format!("{}: {}", call.description, result));
                 }
                 Err(e) => {
                     self.output.error(&format!("✗ Error: {}", e));
+                    results.push(format!("{}: Error - {}", call.description, e));
                 }
             }
         }
 
         println!();
         self.output.success("All tasks completed!");
+
+        // Add tool execution results to conversation history
+        if !results.is_empty() {
+            let results_summary = format!("Tool execution results:\n{}", results.join("\n"));
+            self.messages.push(Message {
+                role: "user".to_string(),
+                content: results_summary,
+            });
+        }
+
         Ok(())
     }
 
