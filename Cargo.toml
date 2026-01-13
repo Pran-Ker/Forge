@@ -6,7 +6,7 @@ edition = "2021"
 [dependencies]
 owo-colors = "4.1"
 console = "0.15"
-tokio = { version = "1.43", features = ["full"] }
+tokio = { version = "1.43", features = ["rt-multi-thread", "macros"] }
 similar = "2.6"
 globset = "0.4"
 walkdir = "2.5"
