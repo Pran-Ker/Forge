@@ -146,7 +146,17 @@ impl Agent {
 
         let json_text = self.call_api(&prompt).await?;
 
-        let tool_calls: Vec<ToolCall> = serde_json::from_str(&json_text)
+        // Strip markdown code blocks if present
+        let cleaned_json = json_text
+            .trim()
+            .strip_prefix("```json")
+            .or_else(|| json_text.trim().strip_prefix("```"))
+            .unwrap_or(json_text.trim())
+            .strip_suffix("```")
+            .unwrap_or(json_text.trim())
+            .trim();
+
+        let tool_calls: Vec<ToolCall> = serde_json::from_str(cleaned_json)
             .unwrap_or_else(|e| {
                 eprintln!("Failed to parse tool calls: {}. Response was:\n{}", e, json_text);
                 vec![]

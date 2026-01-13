@@ -7,8 +7,7 @@ async fn main() -> anyhow::Result<()> {
     dotenv::dotenv().ok();
 
     let output = Output::new();
-    output.success("Forge v0.1.0 - AI Agent");
-    output.info("Powered by Claude Sonnet 4.5\n");
+    output.info("Forging now...\n");
 
     let api_key = env::var("ANTHROPIC_API_KEY").unwrap_or_else(|_| {
         output.error("ANTHROPIC_API_KEY not found in environment");
@@ -18,9 +17,6 @@ async fn main() -> anyhow::Result<()> {
     });
 
     let mut agent = Agent::new(api_key);
-
-    output.info("Agent is ready. Ask me to do something with your files!\n");
-    output.info("Type 'exit' or 'quit' to exit\n");
 
     loop {
         let input = match Text::new("you>").prompt() {
